@@ -21,19 +21,28 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 
-// in this class I will list common different ways to achieve the same result, for demonstration purpose
+// Here you will find common different ways to produce a message, for demonstration purpose
 @Component
 @Slf4j
 public class LibraryEventProducer {
-
-    @Value("${topic}")
-    private String topic;
 
     @Autowired
     private KafkaTemplate<Integer, String> kafkaTemplate;
 
     @Autowired
     private ObjectMapper objectMapper;
+
+
+    // async produce
+    public void sendLibraryEvent(final LibraryEvent libraryEvent) throws JsonProcessingException {
+        Integer key = libraryEvent.getId();
+        String value = objectMapper.writeValueAsString(libraryEvent);
+
+        kafkaTemplate.sendDefault(key, value).addCallback(
+                result -> handleSuccess(key, value, result),
+                ex -> handleFailure(key, value, ex)
+        );
+    }
 
 
     // sync produce
@@ -51,19 +60,13 @@ public class LibraryEventProducer {
     }
 
 
-    // async produce
-    public void sendLibraryEvent(final LibraryEvent libraryEvent) throws JsonProcessingException {
-        Integer key = libraryEvent.getId();
-        String value = objectMapper.writeValueAsString(libraryEvent);
+    // async produce using ProducerRecord and no lambda expression (java 7-)
+    public ListenableFuture<SendResult<Integer, String>> sendLibraryEventsWithHeaders_usingProducerRecord(final LibraryEvent libraryEvent) throws JsonProcessingException {
+        final String topic = "library-events";
+        final Integer key = libraryEvent.getId();
+        final String value = objectMapper.writeValueAsString(libraryEvent);
 
-        kafkaTemplate.sendDefault(key, value).addCallback(
-                result -> handleSuccess(key, value, result),
-                (KafkaFailureCallback<Integer, String>) ex -> handleFailure(key, value, ex)
-        );
-
-        /* ALTERNATIVE using anonymous classes (java 7-)
-
-        ListenableFuture<SendResult<Integer, String>> listenableFuture = kafkaTemplate.sendDefault(key, value);
+        ListenableFuture<SendResult<Integer, String>> listenableFuture = kafkaTemplate.send(buildProducerRecord(key, value, topic));
 
         listenableFuture.addCallback(new ListenableFutureCallback<SendResult<Integer, String>>() {
             @Override
@@ -76,23 +79,11 @@ public class LibraryEventProducer {
                 handleSuccess(key, value, result);
             }
         });
-         */
+
+        return listenableFuture;
     }
 
 
-    // using ProducerRecord
-    public void sendLibraryEventsWithHeaders_usingProducerRecord(final LibraryEvent libraryEvent) throws JsonProcessingException {
-        Integer key = libraryEvent.getId();
-        String value = objectMapper.writeValueAsString(libraryEvent);
-
-        ProducerRecord<Integer,String> producerRecord = buildProducerRecord(key, value, topic);
-
-        kafkaTemplate.sendDefault(key, value).addCallback(
-                result -> handleSuccess(key, value, result),
-                (KafkaFailureCallback<Integer, String>) ex -> handleFailure(key, value, ex)
-        );
-
-    }
 
 
     public ProducerRecord<Integer, String> buildProducerRecord(Integer key, String value, String topic) {

@@ -7,13 +7,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.time.ZonedDateTime;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
 @RequestMapping("/api/v1")
@@ -31,6 +29,19 @@ public class LibraryEventController {
         libraryEventProducer.sendLibraryEvent(libraryEvent);
 
         return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+    @PutMapping("/library-event")
+    public ResponseEntity<?> putLibraryEvent(@RequestBody @Valid LibraryEvent libraryEvent) throws JsonProcessingException, ExecutionException, InterruptedException {
+        log.info("New putLibraryEvent - timestamp: {}", ZonedDateTime.now().toString());
+
+        if (libraryEvent.getId()==null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("LibraryEvent's ID is required");
+        }
+
+        libraryEvent.setType(LibraryEvent.Type.UPDATE);
+        libraryEventProducer.sendLibraryEvent(libraryEvent);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
 

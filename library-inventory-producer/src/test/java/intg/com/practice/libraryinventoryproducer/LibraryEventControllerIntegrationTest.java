@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @EmbeddedKafka(topics = {"library-events"}, partitions = 3)
 @TestPropertySource(properties = {"spring.kafka.producer.bootstrap-servers=${spring.embedded.kafka.brokers}",
 									"spring.kafka.admin.properties.bootstrap.servers=${spring.embedded.kafka.brokers}"} )
-class LibraryInventoryProducerApplicationTests {
+class LibraryEventControllerIntegrationTest {
 
 	@Autowired
 	private TestRestTemplate testRestTemplate;
@@ -46,6 +46,7 @@ class LibraryInventoryProducerApplicationTests {
 	private ObjectMapper objectMapper;
 
 	private Consumer<Integer, String> consumer;
+
 
 	// Setup consumer
 	@BeforeEach
@@ -60,6 +61,7 @@ class LibraryInventoryProducerApplicationTests {
 	void tearDown() {
 		consumer.close();
 	}
+
 
 	@Test
 	@Timeout(5)
@@ -79,6 +81,34 @@ class LibraryInventoryProducerApplicationTests {
 				testRestTemplate.exchange("/api/v1/library-event", HttpMethod.POST, new HttpEntity<>(libraryEvent), HttpStatus.class);
 
 		assertEquals(HttpStatus.CREATED, response.getStatusCode());
+
+		// consume message from topic
+		ConsumerRecord<Integer, String> consumerRecord = KafkaTestUtils.getSingleRecord(consumer, "library-events");
+
+		// verify the message received by the consumer is as expected
+		assertEquals(libraryEvent, objectMapper.readValue(consumerRecord.value(), LibraryEvent.class));
+	}
+
+
+
+	@Test
+	@Timeout(5)
+	void putLibraryEvent() throws JsonProcessingException {
+		LibraryEvent libraryEvent = LibraryEvent.builder()
+				.id(100)
+				.type(LibraryEvent.Type.UPDATE)
+				.book(Book.builder()
+						.author("Patrick O'Brian")
+						.name("Master and Commander")
+						.id(346)
+						.build())
+				.build();
+
+		// call API to write on Topic
+		ResponseEntity<HttpStatus> response =
+				testRestTemplate.exchange("/api/v1/library-event", HttpMethod.PUT, new HttpEntity<>(libraryEvent), HttpStatus.class);
+
+		assertEquals(HttpStatus.OK, response.getStatusCode());
 
 		// consume message from topic
 		ConsumerRecord<Integer, String> consumerRecord = KafkaTestUtils.getSingleRecord(consumer, "library-events");
