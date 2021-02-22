@@ -23,7 +23,7 @@ public class LibraryEvent {
     @Enumerated(EnumType.STRING)
     private Type type;
 
-    @OneToOne(mappedBy = "libraryEvent", cascade = {CascadeType.ALL} )
+    @OneToOne(mappedBy = "libraryEvent", cascade = CascadeType.ALL)
     @ToString.Exclude
     private Book book;
 

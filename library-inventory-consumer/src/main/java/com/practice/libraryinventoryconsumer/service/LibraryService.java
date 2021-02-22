@@ -4,15 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.practice.libraryinventoryconsumer.entity.LibraryEvent;
 import com.practice.libraryinventoryconsumer.repository.LibraryInventoryRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.util.concurrent.ListenableFuture;
-import org.springframework.util.concurrent.ListenableFutureCallback;
-
-import java.util.Optional;
 
 @Service
 @Slf4j

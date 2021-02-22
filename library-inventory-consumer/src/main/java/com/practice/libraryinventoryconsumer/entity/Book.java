@@ -15,12 +15,11 @@ import javax.persistence.*;
 public class Book {
 
     @Id
-    @GeneratedValue
     private Integer id;
     private String name;
     private String author;
 
     @OneToOne
-    @JoinColumn(name = "libraryEventId")
+    @JoinColumn(name = "library_event_id")
     private LibraryEvent libraryEvent;
 }
