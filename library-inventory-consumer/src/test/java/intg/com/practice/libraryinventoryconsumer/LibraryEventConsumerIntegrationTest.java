@@ -158,8 +158,43 @@ public class LibraryEventConsumerIntegrationTest {
         CountDownLatch latch = new CountDownLatch(1);
         latch.await(3, TimeUnit.SECONDS);
 
+        // 1 time because IllegalArgumentException shall not kick retries
         verify(libraryConsumerSpy, atLeast(1)).listener(isA(ConsumerRecord.class));
         verify(libraryServiceSpy, atLeast(1)).processMessage(isA(String.class));
+    }
+
+
+    @Test
+    void testRetriesWhenRecoverableDataAccessExceptionIsThrown() throws JsonProcessingException, InterruptedException, ExecutionException {
+        //given
+        Integer libraryEventId = 000;
+        String json = "{\"id\":" + libraryEventId + ",\"type\":\"UPDATE\",\"book\":{\"id\":456,\"name\":\"My Awesome Book\",\"author\":\"Marco\"}}";
+        kafkaTemplate.sendDefault(libraryEventId, json).get();
+
+        //when
+        CountDownLatch latch = new CountDownLatch(1);
+        latch.await(3, TimeUnit.SECONDS);
+
+        // 3 times due to retries (see LibraryConsumerConfig)
+        verify(libraryConsumerSpy, atLeast(3)).listener(isA(ConsumerRecord.class));
+        verify(libraryServiceSpy, atLeast(3)).processMessage(isA(String.class));
+    }
+
+
+
+    @Test
+    void testRecovery() throws JsonProcessingException, InterruptedException, ExecutionException {
+        //given
+        Integer libraryEventId = 000;
+        String json = "{\"id\":" + libraryEventId + ",\"type\":\"UPDATE\",\"book\":{\"id\":456,\"name\":\"My Awesome Book\",\"author\":\"Marco\"}}";
+        kafkaTemplate.sendDefault(libraryEventId, json).get();
+
+        //when
+        CountDownLatch latch = new CountDownLatch(1);
+        latch.await(3, TimeUnit.SECONDS);
+
+        verify(libraryConsumerSpy, atLeast(3)).listener(isA(ConsumerRecord.class));  // 3 times due to retries (see LibraryConsumerConfig)
+        verify(libraryServiceSpy, atLeast(1)).handleRecovery(isA(ConsumerRecord.class));
     }
 
 }
